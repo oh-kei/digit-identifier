@@ -1,5 +1,6 @@
 import numpy as np
 import random
+import pickle
 from data_loader import load_data_wrapper
 class Network(object):
     def __init__(self, sizes):
@@ -7,6 +8,19 @@ class Network(object):
         self.sizes = sizes
         self.biases = [np.random.randn(y,1) for y in sizes[1:]] #creating 1 random bias to start with for each neuron
         self.weights = [np.random.randn(y,x) for x,y in zip(sizes[:-1],sizes[1:])]#creating random weights to start to connect neurons from adjacent layers
+    def save(self, filename="network.pkl"):
+        """Save weights and biases to a file."""
+        with open(filename, "wb") as f:
+            pickle.dump((self.sizes, self.weights, self.biases), f)
+    @staticmethod
+    def load(filename="network.pkl"):
+        """Load a network from file."""
+        with open(filename, "rb") as f:
+            sizes, weights, biases = pickle.load(f)
+        net = Network(sizes)
+        net.weights = weights
+        net.biases = biases
+        return net
     def get_output(self,a):#given a specific input, a, for a network, returns the output
         for b,w in zip(self.biases,self.weights):
             a = sigmoid(np.dot(w,a)+b)
@@ -74,7 +88,25 @@ def sigmoid(y):#applies sigmoid function to inputs
 def sigmoid_prime(y):
     return sigmoid(y) * (1-sigmoid(y))
 
+from PIL import Image
+import numpy as np
+
+def predict_image(filename, net):#allows for handwritten digits to be tested, converted into mnist format
+    img = Image.open(filename).convert("L")  # convert to grayscale
+    img = img.resize((28, 28))  # resize to 28x28 like MNIST
+    data = np.array(img)
+    data = 255 - data  
+    data = data / 255.0
+    data = data.reshape((784, 1))
+    #get prediction
+    output = net.get_output(data)
+    prediction = np.argmax(output)
+    return prediction
+
 if __name__ == "__main__":
     training_data, validation_data, test_data = load_data_wrapper()
-    net = Network([784, 30, 10])  # input: 784 pixels, 1 hidden layer of 30, output: 10 digits
-    net.gradient_descent(training_data, epochs=10, batch_size=10, eta=3.0, test=test_data)
+    net = Network([784, 30, 10])
+    net.gradient_descent(training_data, epochs=25, batch_size=10, eta=3.0, test=test_data)
+    net.save("trained_network.pkl")
+    result = predict_image("my_digit.png", net)
+    print("Prediction for your digit:", result)
